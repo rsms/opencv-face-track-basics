@@ -1,0 +1,1 @@
+You can grab a pre-compiled version of this framework at http://www.ient.rwth-aachen.de/cms/software/opencv/ (use OpenCV-Private-Framework-1.2.dmg)
