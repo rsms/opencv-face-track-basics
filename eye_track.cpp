@@ -2,9 +2,9 @@
 #include <cassert>
 #include <iostream>
 
-const char  * WINDOW_NAME  = "Eyes tracker";
-const CFIndex CASCADE_NAME_LEN = 2048;
-char    CASCADE_NAME[CASCADE_NAME_LEN] = "abc.xml";
+const char *g_window_name = "Eyes tracker";
+const CFIndex g_cascade_name_len = 2048;
+char g_cascade_name[g_cascade_name_len] = "abc.xml";
 
 using namespace std;
 
@@ -13,33 +13,29 @@ int main (int argc, char * const argv[]) {
 	          refreshDelay = 10;
 	
 	// locate haar cascade from inside application bundle
-	// (this is the mac way to package application resources)
 	CFBundleRef mainBundle = CFBundleGetMainBundle();
 	assert(mainBundle);
 	CFURLRef cascade_url = CFBundleCopyResourceURL(mainBundle, CFSTR("haarcascade_eyes"), CFSTR("xml"), NULL);
 	assert(cascade_url);
-	if (!CFURLGetFileSystemRepresentation (cascade_url, true, reinterpret_cast<UInt8 *>(CASCADE_NAME), CASCADE_NAME_LEN))
+	if (!CFURLGetFileSystemRepresentation (cascade_url, true, reinterpret_cast<UInt8 *>(g_cascade_name), g_cascade_name_len))
 		abort();
 	
-	// create all necessary instances
-	cvNamedWindow (WINDOW_NAME, CV_WINDOW_AUTOSIZE);
-	CvCapture * camera = cvCreateCameraCapture (CV_CAP_ANY);
-	CvHaarClassifierCascade* cascade = (CvHaarClassifierCascade*) cvLoad(CASCADE_NAME, 0, 0, 0);
-	CvMemStorage* storage = cvCreateMemStorage(0);
-	assert (storage);
-	
+	// create window, open camera stream, load cascade and create a buffer
+	cvNamedWindow(g_window_name, CV_WINDOW_AUTOSIZE);
+	CvCapture *camera = cvCreateCameraCapture (CV_CAP_ANY);
 	if (!camera)
 		abort();
-	
-	// did we load the cascade?!?
+	CvHaarClassifierCascade *cascade = (CvHaarClassifierCascade *)cvLoad(g_cascade_name, 0, 0, 0);
 	if (!cascade)
 		abort();
+	CvMemStorage *storage = cvCreateMemStorage(0);
+	assert(storage);
 	
 	// get an initial frame and duplicate it for later work
-	IplImage *  current_frame = cvQueryFrame (camera);
-	IplImage *  draw_image    = cvCreateImage(cvSize (current_frame->width, current_frame->height), IPL_DEPTH_8U, 3);
-	IplImage *  gray_image    = cvCreateImage(cvSize (current_frame->width, current_frame->height), IPL_DEPTH_8U, 1);
-	IplImage *  small_image   = cvCreateImage(cvSize (current_frame->width / scale, current_frame->height / scale), IPL_DEPTH_8U, 1);
+	IplImage *current_frame = cvQueryFrame(camera);
+	IplImage *draw_image    = cvCreateImage(cvSize(current_frame->width, current_frame->height), IPL_DEPTH_8U, 3);
+	IplImage *gray_image    = cvCreateImage(cvSize(current_frame->width, current_frame->height), IPL_DEPTH_8U, 1);
+	IplImage *small_image   = cvCreateImage(cvSize(current_frame->width/scale, current_frame->height/scale), IPL_DEPTH_8U, 1);
 	assert (current_frame && gray_image && draw_image);
 	
 	// as long as there are images ...
@@ -49,9 +45,8 @@ int main (int argc, char * const argv[]) {
 		cvResize(gray_image, small_image, CV_INTER_LINEAR);
 		
 		// detect
-		CvSeq* eyes = cvHaarDetectObjects (small_image, cascade, storage,
-																				1.1, 2, CV_HAAR_DO_CANNY_PRUNING,
-																				cvSize (30, 30));
+		CvSeq* eyes = cvHaarDetectObjects(small_image, cascade, storage, 1.1, 2,
+		                                  CV_HAAR_DO_CANNY_PRUNING, cvSize(30, 30));
 		
 		// draw areas
 		cvFlip(current_frame, draw_image, 1);
@@ -59,15 +54,14 @@ int main (int argc, char * const argv[]) {
 		for (int i = 0; i < (eyes ? eyes->total : 0); i++) {
 			CvRect *r = (CvRect *)cvGetSeqElem(eyes, i);
 			CvPoint center;
-			int radius;
 			center.x = cvRound((small_image->width - r->width*0.5 - r->x) *scale);
 			center.y = cvRound((r->y + r->height*0.5)*scale);
-			radius = cvRound((r->width + r->height)*0.25*scale);
+			int radius = cvRound((r->width + r->height)*0.25*scale);
 			cvCircle(draw_image, center, radius, CV_RGB(0,255,0), 3, 8, 0);
 		}
 		
 		// just show the image
-		cvShowImage(WINDOW_NAME, draw_image);
+		cvShowImage(g_window_name, draw_image);
 		
 		// wait a tenth of a second for keypress and window drawing
 		int key = cvWaitKey(refreshDelay);
@@ -75,6 +69,5 @@ int main (int argc, char * const argv[]) {
 			break;
 	}
 	
-	// be nice and return no error
 	return 0;
 }
